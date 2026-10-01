@@ -1,0 +1,19 @@
+# Docker / env
+.env
+*.log
+
+# OS/editor
+.DS_Store
+.idea/
+.vscode/
+
+# Local runtime/build artifacts (keep the host directories present)
+/app/vendor/*
+!/app/vendor/.gitkeep
+/app/cache/*
+!/app/cache/.gitkeep
+/app/logs/*
+!/app/logs/.gitkeep
+
+# Docker volumes
+*.pid
