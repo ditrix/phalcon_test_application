@@ -1,0 +1,23 @@
+CREATE TABLE `requests` (
+  `id` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  `external_id` VARCHAR(32) NOT NULL,
+  `created_at` DATETIME NOT NULL,
+  `first_name` VARCHAR(100) DEFAULT NULL,
+  `last_name` VARCHAR(100) DEFAULT NULL,
+  `phone` VARCHAR(20) DEFAULT NULL,
+  `email` VARCHAR(150) DEFAULT NULL,
+  `city` VARCHAR(100) DEFAULT NULL,
+  `source` VARCHAR(100) DEFAULT NULL,
+  `utm_campaign` VARCHAR(100) DEFAULT NULL,
+  `product` VARCHAR(100) DEFAULT NULL,
+  `budget_uah` INT UNSIGNED DEFAULT NULL,
+  `status` VARCHAR(50) DEFAULT NULL,
+  `manager` VARCHAR(100) DEFAULT NULL,
+  `comment` TEXT DEFAULT NULL,
+  `next_contact_at` DATETIME DEFAULT NULL,
+  `imported_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uniq_external_id` (`external_id`),
+  KEY `idx_created_at` (`created_at`),
+  KEY `idx_status` (`status`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

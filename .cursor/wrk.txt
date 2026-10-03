@@ -1,0 +1,132 @@
+создаю тестовое задание на Phalcon 3 
+"Завдання: зробити сторінку імпорту заявок (файл для імпорту надається).
+Задача рахується виконаною, якщо в базі запишуться ВСІ рядки при стандартному max_execution_time=30"
+
+
+таблица расположена в гугл таблицах, поэтому принял решение скачать как xlsx так и csv. 
+тебе шлю xlsx для примера. csv полный.
+обрати внимание в таблицах в данных есть проблемые данные
+- Дубли `external_id` (~22 в файле)  
+- `phone = #ERROR!` → NULL
+- `phone = 12345` / `380` → NULL (длина < 10)
+- `phone = 380672341057.0` → убрать `.0`
+- `email = user@@ukr.net` → NULL
+- `budget = "23 700"` → 23700
+- `budget = "1.2E+15"` → (int) через (float)
+- Пустые `first_name`, `comment` → NULL
+- BOM в первой ячейке CSV → 
+----------------
+
+саму схему DB придумал такую
+
+CREATE TABLE IF NOT EXISTS `requests` (
+  `id` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  `external_id` VARCHAR(32) NOT NULL,
+  `created_at` DATETIME NOT NULL,
+  `first_name` VARCHAR(100) DEFAULT NULL,
+  `last_name` VARCHAR(100) DEFAULT NULL,
+  `phone` VARCHAR(20) DEFAULT NULL,
+  `email` VARCHAR(150) DEFAULT NULL,
+  `city` VARCHAR(100) DEFAULT NULL,
+  `source` VARCHAR(100) DEFAULT NULL,
+  `utm_campaign` VARCHAR(100) DEFAULT NULL,
+  `product` VARCHAR(100) DEFAULT NULL,
+  `budget_uah` INT UNSIGNED DEFAULT NULL,
+  `status` VARCHAR(50) DEFAULT NULL,
+  `manager` VARCHAR(100) DEFAULT NULL,
+  `comment` TEXT DEFAULT NULL,
+  `next_contact_at` DATETIME DEFAULT NULL,
+  `imported_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uniq_external_id` (`external_id`),
+  KEY `idx_created_at` (`created_at`),
+  KEY `idx_status` (`status`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+----------------------
+
+процесс импорта загрузка приложаение
+0 одностраничик + tailwindCSS обертка
+1 форма выбота файла на диске + 
+2 процесс (возможно с анимацией)
+3 результат область статистики + таблица с панмеацией
+
+под капотом
+1 if (xlsx) { converToCSV()}
+2 importCSV()
+
+
+-----------------------------
+уже развернкто под докер рабочая среда
+ditrix@desktop:~/PROJECTS/phalcon_test_application (main)*$ docker compose ps
+NAME           IMAGE                          COMMAND                  SERVICE      CREATED       STATUS                 PORTS
+phalcon3-db    mysql:5.7                      "docker-entrypoint.s…"   db           7 hours ago   Up 7 hours (healthy)   0.0.0.0:3306->3306/tcp, [::]:3306->3306/tcp, 33060/tcp
+phalcon3-pma   phpmyadmin/phpmyadmin          "/docker-entrypoint.…"   phpmyadmin   7 hours ago   Up 7 hours             0.0.0.0:8081->80/tcp, [::]:8081->80/tcp
+phalcon3-web   phalcon_test_application-web   "docker-php-entrypoi…"   web          7 hours ago   Up 7 hours (healthy)   0.0.0.0:8080->80/tcp, [::]:8080->80/tcp
+ditrix@desktop:~/PROJECTS/phalcon_test_application (main)*$ docker compose exec web php -v
+PHP 7.2.34 (cli) (built: Dec 11 2020 10:51:16) ( NTS )
+Copyright (c) 1997-2018 The PHP Group
+Zend Engine v3.2.0, Copyright (c) 1998-2018 Zend Technologies
+    with Zend OPcache v7.2.34, Copyright (c) 1999-2018, by Zend Technologies
+ditrix@desktop:~/PROJECTS/phalcon_test_application (main)*$ docker compose exec web composer --version
+Composer version 2.10.3 2026-08-27 13:34:23
+PHP version 7.2.34 (/usr/local/bin/php)
+Run the "diagnose" command to get more detailed diagnostics output.
+ditrix@desktop:~/PROJECTS/phalcon_test_application (main)*$ docker compose exec db mysql --version
+mysql  Ver 14.14 Distrib 5.7.44, for Linux (x86_64) using  EditLine wrapper
+ditrix@desktop:~/PROJECTS/phalcon_test_application (main)*$ 
+------------
+работает тестовое приложение
+<?php
+
+use Phalcon\Di\FactoryDefault;
+use Phalcon\Mvc\Micro;
+
+$di = new FactoryDefault();
+
+$di->setShared('db', function () {
+    $host = getenv('DB_HOST') ?: 'db';
+    $port = getenv('DB_PORT') ?: '3306';
+    $dbname = getenv('DB_NAME') ?: 'phalcon_app';
+    $user = getenv('DB_USER') ?: 'phalcon';
+    $pass = getenv('DB_PASS') ?: 'secret';
+
+    $dsn = sprintf('mysql:host=%s;port=%s;dbname=%s;charset=utf8mb4', $host, $port, $dbname);
+
+    return new \Phalcon\Db\Adapter\Pdo\Mysql([
+        'host' => $host,
+        'port' => $port,
+        'dbname' => $dbname,
+        'username' => $user,
+        'password' => $pass,
+        'charset' => 'utf8mb4',
+    ]);
+});
+
+$app = new Micro();
+$app->setDI($di);
+
+$app->get('/', function () use ($app) {
+    $phalconVersion = \Phalcon\Version::get();
+    $phpVersion = PHP_VERSION;
+    $dbStatus = 'DB connection failed';
+
+    try {
+        $result = $app->getDI()->getShared('db')->fetchOne('SELECT 1');
+        if ($result !== null) {
+            $dbStatus = 'DB connection OK';
+        }
+    } catch (\Throwable $e) {
+        $dbStatus = 'DB connection failed: ' . $e->getMessage();
+    }
+
+    echo "Phalcon version: {$phalconVersion}<br>";
+    echo "PHP version: {$phpVersion}<br>";
+    echo "DB status: {$dbStatus}<br>";
+});
+
+$app->handle($_SERVER['REQUEST_URI'] ?? '/');
+-----------------
+
+
+
