@@ -1,4 +1,4 @@
-CREATE TABLE `requests` (
+CREATE TABLE IF NOT EXISTS `requests` (
   `id` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
   `external_id` VARCHAR(32) NOT NULL,
   `created_at` DATETIME NOT NULL,
