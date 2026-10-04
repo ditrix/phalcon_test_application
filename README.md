@@ -1,53 +1,125 @@
-# Phalcon lead import demo
+# Імпорт заявок
 
-This project implements a chunked import flow for request/leads data in a Phalcon 3 micro app. It accepts CSV and XLSX files, streams the data without loading the entire file into memory, persists rows in MySQL with batch inserts, and keeps the import resumable via stored byte offsets.
+Вебзастосунок на Phalcon Micro для імпорту заявок із CSV та XLSX. XLSX конвертується у тимчасовий CSV через `ZipArchive` і `XMLReader`. Дані читаються потоково та записуються до MySQL-сумісної бази пакетами по 1000 рядків.
 
-## Run locally
+Новий імпорт **замінює весь поточний набір записів** у таблиці `requests`. Таблиця містить лише 15 колонок із файлу. Історія імпортів і службові лічильники у базі не зберігаються: статистика розраховується в пам’яті та повертається після завершення запиту.
+
+## Версії та Docker-оточення
+
+| Компонент | Версія / образ |
+|---|---|
+| PHP | 7.2.34 (`php:7.2-apache-buster`) |
+| Phalcon | 3.4.5, PHP C extension |
+| Composer | 2.10.3 |
+| База даних | MariaDB 10.11.19 (`mariadb:10.11`), сумісна з MySQL |
+| Docker Compose | Compose plugin v2 |
+
+У `docker-compose.yml` визначені сервіси:
+
+- `web` — PHP/Apache, застосунок доступний на [http://localhost:8080/](http://localhost:8080/);
+- `db` — MariaDB; порт бази на хості `3306`;
+- `phpmyadmin` — вебінтерфейс бази на [http://localhost:8081/](http://localhost:8081/).
+
+PHP налаштований приймати файли до 32 МБ, POST-запити до 40 МБ і має `max_execution_time=30`. Застосунок не змінює ліміт часу виконання програмно.
+
+## Встановлення та запуск
+
+Потрібні Docker Engine та Docker Compose v2.
+
+1. Клонуйте репозиторій і перейдіть у його кореневу директорію.
+2. Створіть локальний файл середовища на основі прикладу:
+
+   ```bash
+   cp .env.example .env
+   ```
+
+3. За потреби змініть значення у `.env`. Приклад містить тестові облікові дані — не використовуйте їх у production.
+4. Зберіть і запустіть сервіси:
+
+   ```bash
+   docker compose up -d --build
+   ```
+
+5. Встановіть Composer-залежності:
+
+   ```bash
+   docker compose exec web composer install
+   ```
+
+6. Переконайтеся, що сервіси працюють:
+
+   ```bash
+   docker compose ps
+   docker compose exec web php -v
+   docker compose exec web php -r 'echo Phalcon\Version::get(), PHP_EOL;'
+   docker compose exec web composer --version
+   docker compose exec db mysql --version
+   ```
+
+Схема `requests` створюється застосунком із `app/migrations/001_init.sql`. Це разовий імпортний застосунок, він не має окремих сценаріїв оновлення схеми з попередніх версій.
+
+## Імпорт через вебінтерфейс
+
+1. Відкрийте [http://localhost:8080/](http://localhost:8080/).
+2. Виберіть `.csv` або `.xlsx` файл і натисніть **Import file**.
+3. Дочекайтеся завершення запиту. Сторінка покаже кількість рядків, кількість повторних `external_id`, рядки з попередженнями, їхні типи та час імпорту.
+4. У таблиці результатів відображаються `external_id`, `created_at`, `first_name`, `last_name`, `phone` та `email`. Для перегляду набору використовуйте **Previous** і **Next**.
+
+Лічильники показуються після завершення синхронного запиту; під час обробки індикатор демонструє, що запит триває. Кожен успішний імпорт очищає попередній набір і записує новий.
+
+## Імпорт і перевірка з CLI
+
+Надані тестові файли мають бути доступні в `docs/`:
 
 ```bash
-docker compose up -d --build web
-docker compose exec web composer install
-docker compose exec web php cli/import.php /var/www/html/docs/База_даних_-_Аркуш1.csv
-docker compose exec web php cli/import.php /var/www/html/docs/База_даних.xlsx
+docker compose exec web sh -lc 'cd /var/www/html && php cli/import.php /var/www/html/docs/База_даних_-_Аркуш1.csv'
+docker compose exec web sh -lc 'cd /var/www/html && php cli/import.php /var/www/html/docs/База_даних.xlsx'
 ```
 
-Then open http://localhost:8080/ to use the single-page file uploader and progress UI.
+CLI-команда показує кількість прочитаних і записаних рядків, дублікати, рядки з попередженнями, тривалість та використання пам’яті. Щоб перевірити поточну таблицю через MySQL:
 
-## Manual UI test
-
-1. Run the build command above after changing the Dockerfile.
-2. Open http://localhost:8080/, select either provided `.csv` or `.xlsx` file, then click **Import file**.
-3. Wait for the read/insert counters to reach 100000 and the result view to show 205 duplicates. Use the page buttons to check that the rows table loads.
-4. If an HTTP/API error occurs, the page shows the error and offers a resume action for an existing import.
-5. Check import-specific totals in MySQL with:
+```bash
+docker compose exec db mysql -uphalcon -psecret phalcon_app
+```
 
 ```sql
-SELECT import_id, COUNT(*) AS total_rows,
-       SUM(is_duplicate = 1) AS duplicates
+SELECT COUNT(*) AS total_rows FROM requests;
+
+SELECT external_id, created_at, first_name, last_name, phone, email
 FROM requests
-GROUP BY import_id
-ORDER BY import_id DESC;
+ORDER BY external_id
+LIMIT 50;
 ```
 
-## Import rules
+Тест нормалізації можна запустити так:
 
-- The DB schema is created from [migrations/001_init.sql](migrations/001_init.sql).
-- `external_id` is not unique: duplicates are flagged with `is_duplicate = 1` in the finalizing step using a single SQL update.
-- Bad values are never dropped; they become `NULL` and append warning codes such as `phone_invalid`, `email_invalid`, `budget_invalid`, and `date_invalid`.
-- The importer is intentionally chunked and resumable to stay under the default 30-second runtime limit.
-- There is no `set_time_limit()` or `ini_set('max_execution_time')` override anywhere in the import logic.
+```bash
+docker compose exec web sh -lc 'cd /var/www/html && php tests/RowNormalizerTest.php'
+```
 
-## Benchmarks
+## Правила обробки даних
 
-CLI validation against the provided files:
+- Таблиця містить лише 15 полів із вихідного файлу, без первинного ключа, додаткових колонок та індексів.
+- `external_id` не є унікальним: усі рядки записуються. Кількість повторних значень рахується в пам’яті імпортера.
+- Порожні та некоректні значення обробляються нормалізатором; для необов’язкових некоректних полів зберігається `NULL`, а причини враховуються у лічильниках попереджень.
+- Під час обробки використовується потокове читання CSV і багаторядкові `INSERT` пакетами по 1000 рядків.
+- Для XLSX зберігаються позиції порожніх клітинок, значення перетворюються відповідно до адрес клітинок, а тимчасові файли видаляються після обробки.
 
-- CSV: rows=100000, duplicates=205, warnings=11298, elapsed_seconds=6.05, peak_memory=16 777 216
-- XLSX: rows=100000, duplicates=205, warnings=11298, elapsed_seconds=16.51, peak_memory=80 437 248
+## Результати тестування
 
-The XLSX path converts the workbook to a temporary CSV using `ZipArchive` + `XMLReader`, then reuses the same streaming CSV importer. This keeps the memory footprint low and follows the required 30-second runtime budget.
+Перевірено на наданих файлах, кожен з яких містить 100 000 рядків даних:
 
-## Notes
+| Формат | Рядків | Час імпорту |
+|---|---:|---:|
+| CSV | 100 000 | 3.94 с |
+| XLSX | 100 000 | 11.48 с |
 
-- `storage/uploads/` receives the uploaded file and the temporary converted CSV.
-- The UI polls `/import/step` until the import reaches `done`, then shows summary cards and paginated rows from `/import/{id}/rows`.
-- Row normalization is tested in [tests/RowNormalizerTest.php](tests/RowNormalizerTest.php) against the known edge cases from the dataset.
+Час XLSX включає конвертацію у CSV та запис даних у базу.
+
+### Результат CSV
+
+![Результат імпорту CSV](result_csv.png)
+
+### Результат XLSX
+
+![Результат імпорту XLSX](result_xlsx.png)

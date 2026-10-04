@@ -62,56 +62,14 @@ $app->post('/import/upload', function () use ($app) {
     }
 });
 
-$app->post('/import/step', function () use ($app) {
-    $response = new Response();
-    $response->setContentType('application/json', 'UTF-8');
-
-    $raw = file_get_contents('php://input');
-    $payload = array();
-    if ($raw !== '') {
-        $payload = json_decode($raw, true);
-    }
-
-    $importId = isset($payload['id']) ? (int) $payload['id'] : 0;
-    if ($importId <= 0) {
-        $response->setJsonContent(array('ok' => false, 'error' => 'Missing import_id'));
-        return $response;
-    }
-
-    try {
-        $service = new ImportService($app->getDI()->getShared('db'));
-        $result = $service->processStep($importId);
-        $response->setJsonContent($result);
-        return $response;
-    } catch (\Throwable $e) {
-        $response->setJsonContent(array('ok' => false, 'error' => $e->getMessage()));
-        return $response;
-    }
-});
-
-$app->get('/import/{id:[0-9]+}/stats', function ($id) use ($app) {
-    $response = new Response();
-    $response->setContentType('application/json', 'UTF-8');
-
-    try {
-        $service = new ImportService($app->getDI()->getShared('db'));
-        $response->setJsonContent($service->getStats((int) $id));
-    } catch (\Throwable $e) {
-        $response->setJsonContent(array('error' => $e->getMessage()));
-    }
-
-    return $response;
-});
-
-$app->get('/import/{id:[0-9]+}/rows', function ($id) use ($app) {
+$app->get('/requests/rows', function () use ($app) {
     $response = new Response();
     $response->setContentType('application/json', 'UTF-8');
 
     try {
         $page = isset($_GET['page']) ? (int) $_GET['page'] : 1;
         $service = new ImportService($app->getDI()->getShared('db'));
-        $rowsResult = $service->getRows((int) $id, $page);
-        $response->setJsonContent($rowsResult);
+        $response->setJsonContent($service->getRows($page));
     } catch (\Throwable $e) {
         $response->setJsonContent(array('error' => $e->getMessage()));
     }

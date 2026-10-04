@@ -30,12 +30,10 @@ foreach (explode(';', $sql) as $statement) {
 
 $path = $argv[1] ?? __DIR__ . '/../docs/База_даних_-_Аркуш1.csv';
 $service = new ImportService($db);
-$start = microtime(true);
 $stats = $service->importFile($path);
-$elapsed = microtime(true) - $start;
 
 printf("rows=%d\n", (int) ($stats['total_rows'] ?? 0));
 printf("duplicates=%d\n", (int) ($stats['duplicates'] ?? 0));
 printf("warnings=%d\n", (int) ($stats['rows_with_warnings'] ?? 0));
-printf("elapsed_seconds=%.2f\n", $elapsed);
+printf("elapsed_seconds=%.2f\n", (float) ($stats['elapsed_seconds'] ?? 0));
 printf("peak_memory=%s\n", number_format(memory_get_peak_usage(true), 0, '.', ' '));

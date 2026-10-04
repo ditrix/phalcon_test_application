@@ -60,6 +60,10 @@ class XlsxToCsvConverter
                 $nextColumnIndex = $columnIndex + 1;
             }
 
+            while (count($rowValues) < 15) {
+                $rowValues[] = '';
+            }
+
             fputcsv($handle, array_values($rowValues));
         }
 

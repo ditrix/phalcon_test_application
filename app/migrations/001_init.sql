@@ -1,7 +1,4 @@
 CREATE TABLE IF NOT EXISTS `requests` (
-  `id` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
-  `import_id` INT UNSIGNED NOT NULL,
-  `row_no` INT UNSIGNED NOT NULL,
   `external_id` VARCHAR(32) NOT NULL,
   `created_at` DATETIME NOT NULL,
   `first_name` VARCHAR(100) DEFAULT NULL,
@@ -16,31 +13,5 @@ CREATE TABLE IF NOT EXISTS `requests` (
   `status` VARCHAR(50) DEFAULT NULL,
   `manager` VARCHAR(100) DEFAULT NULL,
   `comment` TEXT DEFAULT NULL,
-  `next_contact_at` DATETIME DEFAULT NULL,
-  `is_duplicate` TINYINT(1) NOT NULL DEFAULT 0,
-  `warnings` VARCHAR(255) DEFAULT NULL,
-  `imported_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  PRIMARY KEY (`id`),
-  KEY `idx_external_id` (`external_id`),
-  KEY `idx_import_row` (`import_id`, `row_no`),
-  KEY `idx_created_at` (`created_at`),
-  KEY `idx_status` (`status`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
-CREATE TABLE IF NOT EXISTS `imports` (
-  `id` INT UNSIGNED NOT NULL AUTO_INCREMENT,
-  `original_name` VARCHAR(255) NOT NULL,
-  `stored_path` VARCHAR(500) NOT NULL,
-  `source_format` VARCHAR(10) NOT NULL,
-  `status` VARCHAR(20) NOT NULL,
-  `byte_offset` BIGINT UNSIGNED NOT NULL DEFAULT 0,
-  `rows_read` INT UNSIGNED NOT NULL DEFAULT 0,
-  `rows_inserted` INT UNSIGNED NOT NULL DEFAULT 0,
-  `rows_duplicate` INT UNSIGNED NOT NULL DEFAULT 0,
-  `rows_with_warnings` INT UNSIGNED NOT NULL DEFAULT 0,
-  `warning_counts` TEXT DEFAULT NULL,
-  `error` TEXT DEFAULT NULL,
-  `started_at` DATETIME DEFAULT NULL,
-  `finished_at` DATETIME DEFAULT NULL,
-  PRIMARY KEY (`id`)
+  `next_contact_at` DATETIME DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

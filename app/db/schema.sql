@@ -1,5 +1,4 @@
 CREATE TABLE IF NOT EXISTS `requests` (
-  `id` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
   `external_id` VARCHAR(32) NOT NULL,
   `created_at` DATETIME NOT NULL,
   `first_name` VARCHAR(100) DEFAULT NULL,
@@ -10,14 +9,9 @@ CREATE TABLE IF NOT EXISTS `requests` (
   `source` VARCHAR(100) DEFAULT NULL,
   `utm_campaign` VARCHAR(100) DEFAULT NULL,
   `product` VARCHAR(100) DEFAULT NULL,
-  `budget_uah` INT UNSIGNED DEFAULT NULL,
+  `budget_uah` BIGINT UNSIGNED DEFAULT NULL,
   `status` VARCHAR(50) DEFAULT NULL,
   `manager` VARCHAR(100) DEFAULT NULL,
   `comment` TEXT DEFAULT NULL,
-  `next_contact_at` DATETIME DEFAULT NULL,
-  `imported_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  PRIMARY KEY (`id`),
-  UNIQUE KEY `uniq_external_id` (`external_id`),
-  KEY `idx_created_at` (`created_at`),
-  KEY `idx_status` (`status`)
+  `next_contact_at` DATETIME DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

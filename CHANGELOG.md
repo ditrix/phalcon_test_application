@@ -1,6 +1,14 @@
 # Changelog
 
 ## 2026-10-04
+- Removed the legacy-schema upgrade migration and helper script: this is a one-off import task, not a maintained application with upgrade paths; documented the initial-schema-only setup in [README.md](README.md).
+- Переписано [README.md](README.md) українською: додано інструкції встановлення Docker-оточення, версії компонентів, CLI-команди, результати тестів CSV/XLSX і скриншоти імпорту.
+- Simplified imports per [`.cursor/promts/refactore.md`](.cursor/promts/refactore.md): removed persisted import history and request metadata, store counters in memory, report elapsed time, and limit the grid to six source columns.
+- Ensure XLSX rows with trailing empty cells still convert to exactly 15 CSV columns, so valid blank cells do not fail structural validation.
+- Synchronized the legacy [app/db/schema.sql](app/db/schema.sql) schema copy and documented updated benchmark figures after removing request metadata/indexes.
+- Clamped requested pagination to the actual number of pages, preventing oversized page values from overflowing the integer SQL offset.
+- Make the schema migration remove legacy indexes even when an existing table already has only the source columns.
+- Animate the in-flight progress indicator during the synchronous import request so the UI shows ongoing work without persisting progress counters.
 - Fixed the XLSX conversion path in [app/Services/XlsxToCsvConverter.php](app/Services/XlsxToCsvConverter.php): cell values were read from XML attributes (`v`) instead of the `<v>` child nodes, which caused the converter to emit repeated header text and zero valid rows during real imports.
 - Kept the import flow compliant with the runtime limit by streaming CSV reads, batch SQL inserts, and resumable chunking without any timeout override.
 - Verified the real dataset through CLI checks for both CSV and XLSX imports: CSV imported 100000 rows with 205 duplicates in ~6.00s, and XLSX imported the same row count with 205 duplicates in ~10.97s.

@@ -4,103 +4,137 @@ namespace App\Services;
 
 class CsvImporter
 {
-    public function processChunk($db, $importId, $filePath, $startOffset, $rowsReadSoFar, $rowsInsertedSoFar, $timeBudgetSeconds = 20)
+    private $expectedHeaders = array(
+        'external_id',
+        'created_at',
+        'first_name',
+        'last_name',
+        'phone',
+        'email',
+        'city',
+        'source',
+        'utm_campaign',
+        'product',
+        'budget_uah',
+        'status',
+        'manager',
+        'comment',
+        'next_contact_at',
+    );
+
+    public function validateFile($filePath)
     {
-        $deadline = microtime(true) + $timeBudgetSeconds;
         $handle = fopen($filePath, 'r');
         if ($handle === false) {
             throw new \RuntimeException('Unable to open import file: ' . $filePath);
         }
 
-        $header = $this->readHeader($handle, $startOffset);
-        $rowNumber = (int) $rowsReadSoFar + 1;
-        $rowsReadTotal = (int) $rowsReadSoFar;
-        $rowsInsertedTotal = (int) $rowsInsertedSoFar;
-        $warningCounts = array();
-        $batch = array();
-        $done = false;
-
-        while (!feof($handle) && microtime(true) < $deadline) {
-            $values = fgetcsv($handle);
-            if ($values === false || $values === array(null)) {
-                $done = true;
-                break;
+        try {
+            $header = $this->normalizeHeader(fgetcsv($handle));
+            if ($header !== $this->expectedHeaders) {
+                throw new \RuntimeException('The import file headers do not match the expected requests columns');
             }
-
-            $rowsReadTotal++;
-            try {
-                $normalized = RowNormalizer::normalizeRow($header, $values);
-                $rowsInsertedTotal++;
-                $this->accumulateWarnings($warningCounts, $normalized['warnings']);
-
-                $batch[] = array(
-                    'row_no' => $rowNumber,
-                    'external_id' => $normalized['external_id'],
-                    'created_at' => $normalized['created_at'],
-                    'first_name' => $normalized['first_name'],
-                    'last_name' => $normalized['last_name'],
-                    'phone' => $normalized['phone'],
-                    'email' => $normalized['email'],
-                    'city' => $normalized['city'],
-                    'source' => $normalized['source'],
-                    'utm_campaign' => $normalized['utm_campaign'],
-                    'product' => $normalized['product'],
-                    'budget_uah' => $normalized['budget_uah'],
-                    'status' => $normalized['status'],
-                    'manager' => $normalized['manager'],
-                    'comment' => $normalized['comment'],
-                    'next_contact_at' => $normalized['next_contact_at'],
-                    'warnings' => $normalized['warnings'],
-                );
-            } catch (\Throwable $e) {
-                $this->recordHardError($db, $importId, $e->getMessage(), $rowNumber);
-            }
-
-            $rowNumber++;
-
-            if (count($batch) >= 500) {
-                $this->persistBatch($db, $importId, $batch);
-                $batch = array();
-            }
-
-            if ($rowsInsertedTotal > $rowsReadSoFar + 999) {
-                break;
-            }
+        } finally {
+            fclose($handle);
         }
-
-        if (!empty($batch)) {
-            $this->persistBatch($db, $importId, $batch);
-        }
-
-        $byteOffset = ftell($handle);
-        if ($byteOffset === false) {
-            $byteOffset = $startOffset;
-        }
-
-        fclose($handle);
-
-        $done = $done || feof(fopen($filePath, 'r'));
-
-        return array(
-            'done' => $done,
-            'rows_read' => $rowsReadTotal,
-            'rows_inserted' => $rowsInsertedTotal,
-            'byte_offset' => (int) $byteOffset,
-            'warning_counts' => $warningCounts,
-        );
     }
 
-    private function readHeader($handle, $startOffset)
+    public function importFile($db, $filePath)
     {
-        if ($startOffset > 0) {
-            fseek($handle, 0);
-            $header = fgetcsv($handle);
-            fseek($handle, $startOffset);
-            return $this->normalizeHeader($header);
+        $handle = fopen($filePath, 'r');
+        if ($handle === false) {
+            throw new \RuntimeException('Unable to open import file: ' . $filePath);
         }
 
-        $header = fgetcsv($handle);
-        return $this->normalizeHeader($header);
+        $header = $this->normalizeHeader(fgetcsv($handle));
+        if ($header !== $this->expectedHeaders) {
+            fclose($handle);
+            throw new \RuntimeException('The import file headers do not match the expected requests columns');
+        }
+
+        $rowNumber = 0;
+        $rowsInserted = 0;
+        $duplicateCount = 0;
+        $rowsWithWarnings = 0;
+        $warningCounts = array();
+        $seenExternalIds = array();
+        $batch = array();
+
+        try {
+            while (($values = fgetcsv($handle)) !== false) {
+                if ($values === array(null)) {
+                    continue;
+                }
+
+                $rowNumber++;
+                if (count($values) !== count($header)) {
+                    throw new \RuntimeException('Invalid column count at data row ' . $rowNumber);
+                }
+
+                try {
+                    $normalized = RowNormalizer::normalizeRow($header, $values);
+                } catch (\Throwable $e) {
+                    throw new \RuntimeException($e->getMessage() . ' at data row ' . $rowNumber, 0, $e);
+                }
+
+                $externalId = $normalized['external_id'];
+                if (isset($seenExternalIds[$externalId])) {
+                    $duplicateCount++;
+                } else {
+                    $seenExternalIds[$externalId] = true;
+                }
+
+                if ($normalized['warnings'] !== '') {
+                    $rowsWithWarnings++;
+                    foreach (explode(',', $normalized['warnings']) as $warning) {
+                        if (!isset($warningCounts[$warning])) {
+                            $warningCounts[$warning] = 0;
+                        }
+                        $warningCounts[$warning]++;
+                    }
+                }
+
+                $batch[] = array(
+                    $normalized['external_id'],
+                    $normalized['created_at'],
+                    $normalized['first_name'],
+                    $normalized['last_name'],
+                    $normalized['phone'],
+                    $normalized['email'],
+                    $normalized['city'],
+                    $normalized['source'],
+                    $normalized['utm_campaign'],
+                    $normalized['product'],
+                    $normalized['budget_uah'],
+                    $normalized['status'],
+                    $normalized['manager'],
+                    $normalized['comment'],
+                    $normalized['next_contact_at'],
+                );
+
+                if (count($batch) >= 1000) {
+                    $this->persistBatch($db, $batch);
+                    $rowsInserted += count($batch);
+                    $batch = array();
+                }
+            }
+
+            if (!empty($batch)) {
+                $this->persistBatch($db, $batch);
+                $rowsInserted += count($batch);
+                $batch = array();
+            }
+        } finally {
+            fclose($handle);
+        }
+
+        return array(
+            'total_rows' => $rowNumber,
+            'rows_inserted' => $rowsInserted,
+            'duplicates' => $duplicateCount,
+            'rows_with_warnings' => $rowsWithWarnings,
+            'warning_counts' => $warningCounts,
+        );
     }
 
     private function normalizeHeader($header)
@@ -116,37 +150,19 @@ class CsvImporter
         return $header;
     }
 
-    private function persistBatch($db, $importId, array $batch)
+    private function persistBatch($db, array $batch)
     {
-        if (empty($batch)) {
-            return;
-        }
-
-        $parts = array();
+        $placeholders = array();
         $values = array();
+
         foreach ($batch as $row) {
-            $parts[] = '(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)';
-            $values[] = (int) $importId;
-            $values[] = (int) $row['row_no'];
-            $values[] = $row['external_id'];
-            $values[] = $row['created_at'];
-            $values[] = $row['first_name'];
-            $values[] = $row['last_name'];
-            $values[] = $row['phone'];
-            $values[] = $row['email'];
-            $values[] = $row['city'];
-            $values[] = $row['source'];
-            $values[] = $row['utm_campaign'];
-            $values[] = $row['product'];
-            $values[] = $row['budget_uah'];
-            $values[] = $row['status'];
-            $values[] = $row['manager'];
-            $values[] = $row['comment'];
-            $values[] = $row['next_contact_at'];
-            $values[] = $row['warnings'];
+            $placeholders[] = '(' . implode(', ', array_fill(0, 15, '?')) . ')';
+            foreach ($row as $value) {
+                $values[] = $value;
+            }
         }
 
-        $sql = 'INSERT INTO requests (import_id, row_no, external_id, created_at, first_name, last_name, phone, email, city, source, utm_campaign, product, budget_uah, status, manager, comment, next_contact_at, warnings) VALUES ' . implode(', ', $parts);
+        $sql = 'INSERT INTO requests (external_id, created_at, first_name, last_name, phone, email, city, source, utm_campaign, product, budget_uah, status, manager, comment, next_contact_at) VALUES ' . implode(', ', $placeholders);
 
         $db->begin();
         try {
@@ -156,36 +172,5 @@ class CsvImporter
             $db->rollback();
             throw $e;
         }
-    }
-
-    private function accumulateWarnings(array &$warningCounts, $warnings)
-    {
-        if ($warnings === '') {
-            return;
-        }
-
-        foreach (explode(',', $warnings) as $warning) {
-            if ($warning === '') {
-                continue;
-            }
-            if (!isset($warningCounts[$warning])) {
-                $warningCounts[$warning] = 0;
-            }
-            $warningCounts[$warning]++;
-        }
-    }
-
-    private function recordHardError($db, $importId, $message, $rowNumber)
-    {
-        $errorText = $message . ' at row ' . $rowNumber;
-        $existing = $db->fetchOne('SELECT error FROM imports WHERE id = ?', \Phalcon\Db::FETCH_ASSOC, [(int) $importId]);
-        $error = $existing['error'] ?? '';
-        if ($error === '') {
-            $error = $errorText;
-        } else {
-            $error = substr($error . '; ' . $errorText, 0, 500);
-        }
-
-        $db->execute('UPDATE imports SET error = ? WHERE id = ?', [substr($error, 0, 500), (int) $importId]);
     }
 }
