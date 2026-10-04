@@ -16,6 +16,7 @@ services:
       - ./app/vendor:/var/www/html/vendor
       - ./app/cache:/var/www/html/cache
       - ./app/logs:/var/www/html/logs
+      - ./docs:/var/www/html/docs
     restart: unless-stopped
     healthcheck:
       test: ["CMD-SHELL", "curl -fsS http://localhost/ >/dev/null || exit 1"]

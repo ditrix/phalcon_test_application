@@ -1,4 +1,11 @@
 {
+    "name": "phalcon/request-import",
+    "description": "Phalcon requests import app",
+    "autoload": {
+        "psr-4": {
+            "App\\": "./"
+        }
+    },
     "require-dev": {
         "phalcon/ide-stubs": "^4.1"
     }

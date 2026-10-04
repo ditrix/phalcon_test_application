@@ -43,8 +43,8 @@ RUN sed -i 's#http://deb.debian.org/debian#http://archive.debian.org/debian#g; s
     make -j"$(nproc)" && \
     make install && \
     echo 'extension=phalcon.so' > /usr/local/etc/php/conf.d/docker-php-ext-phalcon.ini && \
+    printf 'upload_max_filesize=32M\npost_max_size=40M\nmax_execution_time=30\n' > /usr/local/etc/php/conf.d/import-upload.ini && \
     sed -i 's#DocumentRoot /var/www/html#DocumentRoot /var/www/html/public#' /etc/apache2/sites-available/000-default.conf && \
-    sed -i '/<Directory \/var\/www\/html\/public>/,/<\/Directory>/ s/AllowOverride None/AllowOverride All/' /etc/apache2/apache2.conf && \
     apt-get purge -y --auto-remove \
         git \
         gcc \
