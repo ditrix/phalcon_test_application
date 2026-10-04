@@ -1,6 +1,7 @@
 # Changelog
 
 ## 2026-10-04
+- Added an attribution section to [README.md](README.md), identifying the task implementer as the Copilot SDK AI assistant in VS Code.
 - Removed the legacy-schema upgrade migration and helper script: this is a one-off import task, not a maintained application with upgrade paths; documented the initial-schema-only setup in [README.md](README.md).
 - Переписано [README.md](README.md) українською: додано інструкції встановлення Docker-оточення, версії компонентів, CLI-команди, результати тестів CSV/XLSX і скриншоти імпорту.
 - Simplified imports per [`.cursor/promts/refactore.md`](.cursor/promts/refactore.md): removed persisted import history and request metadata, store counters in memory, report elapsed time, and limit the grid to six source columns.
