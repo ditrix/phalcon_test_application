@@ -28,41 +28,30 @@ if ($initSql !== false) {
     }
 }
 
-$indexes = $db->fetchAll(
-    'SHOW INDEX FROM requests',
+$columns = $db->fetchAll(
+    'SHOW COLUMNS FROM requests',
     \Phalcon\Db::FETCH_ASSOC
 );
-if (!empty($indexes)) {
-    $dropClauses = array();
-    $hasPrimaryKey = false;
-
-    foreach ($indexes as $index) {
-        $keyName = $index['Key_name'];
-        if ($keyName === 'PRIMARY') {
-            $hasPrimaryKey = true;
-            continue;
-        }
-
-        $dropClause = 'DROP INDEX `' . str_replace('`', '``', $keyName) . '`';
-        if (!in_array($dropClause, $dropClauses, true)) {
-            $dropClauses[] = $dropClause;
-        }
+ $hasId = false;
+foreach ($columns as $column) {
+    if ($column['Field'] === 'id') {
+        $hasId = true;
+        break;
     }
+}
+if (!$hasId) {
+    $db->execute('ALTER TABLE requests ADD COLUMN `id` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY FIRST');
+}
 
-    if ($hasPrimaryKey) {
-        $dropClauses[] = 'DROP PRIMARY KEY';
+$hasWarning = false;
+foreach ($columns as $column) {
+    if ($column['Field'] === 'warning') {
+        $hasWarning = true;
+        break;
     }
-
-    if (!empty($dropClauses)) {
-        $columns = $db->fetchAll('SHOW COLUMNS FROM requests', \Phalcon\Db::FETCH_ASSOC);
-        foreach ($columns as $column) {
-            if (strpos($column['Extra'], 'auto_increment') !== false) {
-                $dropClauses[] = 'DROP COLUMN `' . str_replace('`', '``', $column['Field']) . '`';
-            }
-        }
-
-        $db->execute('ALTER TABLE requests ' . implode(', ', $dropClauses));
-    }
+}
+if (!$hasWarning) {
+    $db->execute("ALTER TABLE requests ADD COLUMN `warning` VARCHAR(255) NOT NULL DEFAULT '-'");
 }
 
 $di = new FactoryDefault();

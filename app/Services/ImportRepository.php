@@ -20,7 +20,7 @@ class ImportRepository
         $offset = ($page - 1) * $limit;
 
         $rows = $db->fetchAll(
-            'SELECT external_id, created_at, first_name, last_name, phone, email FROM requests ORDER BY external_id, created_at, first_name, last_name, phone, email LIMIT ' . $offset . ', ' . $limit,
+            'SELECT id, external_id, created_at, first_name, last_name, phone, email, warning FROM requests ORDER BY id LIMIT ' . $offset . ', ' . $limit,
             \Phalcon\Db::FETCH_ASSOC
         );
 

@@ -78,10 +78,19 @@ class CsvImporter
                 }
 
                 $externalId = $normalized['external_id'];
+                $rowWarnings = array();
                 if (isset($seenExternalIds[$externalId])) {
                     $duplicateCount++;
+                    $rowWarnings[] = 'duplicate external_id';
                 } else {
                     $seenExternalIds[$externalId] = true;
+                }
+
+                if (strpos($normalized['warnings'], 'phone_invalid') !== false) {
+                    $rowWarnings[] = 'wrong phone';
+                }
+                if (strpos($normalized['warnings'], 'email_invalid') !== false) {
+                    $rowWarnings[] = 'wrong email';
                 }
 
                 if ($normalized['warnings'] !== '') {
@@ -110,6 +119,7 @@ class CsvImporter
                     $normalized['manager'],
                     $normalized['comment'],
                     $normalized['next_contact_at'],
+                    empty($rowWarnings) ? '-' : implode(', ', $rowWarnings),
                 );
 
                 if (count($batch) >= 1000) {
@@ -156,13 +166,13 @@ class CsvImporter
         $values = array();
 
         foreach ($batch as $row) {
-            $placeholders[] = '(' . implode(', ', array_fill(0, 15, '?')) . ')';
+            $placeholders[] = '(' . implode(', ', array_fill(0, 16, '?')) . ')';
             foreach ($row as $value) {
                 $values[] = $value;
             }
         }
 
-        $sql = 'INSERT INTO requests (external_id, created_at, first_name, last_name, phone, email, city, source, utm_campaign, product, budget_uah, status, manager, comment, next_contact_at) VALUES ' . implode(', ', $placeholders);
+        $sql = 'INSERT INTO requests (external_id, created_at, first_name, last_name, phone, email, city, source, utm_campaign, product, budget_uah, status, manager, comment, next_contact_at, warning) VALUES ' . implode(', ', $placeholders);
 
         $db->begin();
         try {

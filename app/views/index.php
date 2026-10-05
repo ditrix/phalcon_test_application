@@ -62,12 +62,14 @@
                 <table class="min-w-full text-sm border-collapse">
                     <thead>
                         <tr class="bg-slate-100 text-left">
+                            <th class="px-3 py-2 border">id</th>
                             <th class="px-3 py-2 border">external_id</th>
                             <th class="px-3 py-2 border">created_at</th>
                             <th class="px-3 py-2 border">first_name</th>
                             <th class="px-3 py-2 border">last_name</th>
                             <th class="px-3 py-2 border">phone</th>
                             <th class="px-3 py-2 border">email</th>
+                            <th class="px-3 py-2 border">warning</th>
                         </tr>
                     </thead>
                     <tbody id="rowsTable"></tbody>
@@ -172,12 +174,14 @@
         function renderRows(rows) {
             rowsTable.innerHTML = rows.map(row => `
                 <tr>
+                    <td class="border px-3 py-2">${escapeHtml(row.id)}</td>
                     <td class="border px-3 py-2">${escapeHtml(row.external_id)}</td>
                     <td class="border px-3 py-2">${escapeHtml(row.created_at)}</td>
                     <td class="border px-3 py-2">${escapeHtml(row.first_name || '-')}</td>
                     <td class="border px-3 py-2">${escapeHtml(row.last_name || '-')}</td>
                     <td class="border px-3 py-2">${escapeHtml(row.phone || '-')}</td>
                     <td class="border px-3 py-2">${escapeHtml(row.email || '-')}</td>
+                    <td class="border px-3 py-2">${escapeHtml(row.warning)}</td>
                 </tr>
             `).join('');
         }

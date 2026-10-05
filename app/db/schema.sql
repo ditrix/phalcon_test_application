@@ -1,4 +1,5 @@
 CREATE TABLE IF NOT EXISTS `requests` (
+  `id` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
   `external_id` VARCHAR(32) NOT NULL,
   `created_at` DATETIME NOT NULL,
   `first_name` VARCHAR(100) DEFAULT NULL,
@@ -13,5 +14,7 @@ CREATE TABLE IF NOT EXISTS `requests` (
   `status` VARCHAR(50) DEFAULT NULL,
   `manager` VARCHAR(100) DEFAULT NULL,
   `comment` TEXT DEFAULT NULL,
-  `next_contact_at` DATETIME DEFAULT NULL
+  `next_contact_at` DATETIME DEFAULT NULL,
+  `warning` VARCHAR(255) NOT NULL DEFAULT '-',
+  PRIMARY KEY (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

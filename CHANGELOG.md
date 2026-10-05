@@ -23,6 +23,8 @@
 - Updated [README.md](README.md) with manual browser test steps and benchmark results from the corrected XLSX conversion.
 
 ## 2026-10-05
+- Added a persisted `warning` field to imported requests for duplicate and invalid phone/email labels; displayed it as the final result-table column and documented the field.
+- Added an auto-incrementing `id` primary key to the requests schema, preserve/add it on application startup, and display it as the first column in the result table; documented the schema and UI update.
 - Fixed Linux Docker uploads by configuring Apache workers to use the host directory GID, allowing writes to the bind-mounted `app/storage/uploads` without making the directory world-writable; documented the host GID and directory permission requirements.
 - Removed legacy indexes during application startup when present, so existing databases have no keys and accept duplicate request IDs in accordance with the current schema; the obsolete auto-increment column is also removed when required to drop a primary key.
 - Removed the manually assigned Composer root version from `composer.json` and configured `COMPOSER_ROOT_VERSION` through Docker Compose and `.env.example` instead.
