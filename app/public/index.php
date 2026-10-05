@@ -28,6 +28,43 @@ if ($initSql !== false) {
     }
 }
 
+$indexes = $db->fetchAll(
+    'SHOW INDEX FROM requests',
+    \Phalcon\Db::FETCH_ASSOC
+);
+if (!empty($indexes)) {
+    $dropClauses = array();
+    $hasPrimaryKey = false;
+
+    foreach ($indexes as $index) {
+        $keyName = $index['Key_name'];
+        if ($keyName === 'PRIMARY') {
+            $hasPrimaryKey = true;
+            continue;
+        }
+
+        $dropClause = 'DROP INDEX `' . str_replace('`', '``', $keyName) . '`';
+        if (!in_array($dropClause, $dropClauses, true)) {
+            $dropClauses[] = $dropClause;
+        }
+    }
+
+    if ($hasPrimaryKey) {
+        $dropClauses[] = 'DROP PRIMARY KEY';
+    }
+
+    if (!empty($dropClauses)) {
+        $columns = $db->fetchAll('SHOW COLUMNS FROM requests', \Phalcon\Db::FETCH_ASSOC);
+        foreach ($columns as $column) {
+            if (strpos($column['Extra'], 'auto_increment') !== false) {
+                $dropClauses[] = 'DROP COLUMN `' . str_replace('`', '``', $column['Field']) . '`';
+            }
+        }
+
+        $db->execute('ALTER TABLE requests ' . implode(', ', $dropClauses));
+    }
+}
+
 $di = new FactoryDefault();
 $di->setShared('db', function () use ($db) {
     return $db;

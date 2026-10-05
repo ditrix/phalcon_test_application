@@ -21,3 +21,7 @@
 - Cast pagination values to integers before embedding them in the `LIMIT` clause because this PDO adapter binds numeric parameters as quoted strings, which MariaDB rejects for `LIMIT`.
 - Preserve XLSX blank cells by placing converted values according to worksheet cell references; omitted empty cells previously shifted later fields into the wrong CSV columns.
 - Updated [README.md](README.md) with manual browser test steps and benchmark results from the corrected XLSX conversion.
+
+## 2026-10-05
+- Fixed Linux Docker uploads by configuring Apache workers to use the host directory GID, allowing writes to the bind-mounted `app/storage/uploads` without making the directory world-writable; documented the host GID and directory permission requirements.
+- Removed legacy indexes during application startup when present, so existing databases have no keys and accept duplicate request IDs in accordance with the current schema; the obsolete auto-increment column is also removed when required to drop a primary key.

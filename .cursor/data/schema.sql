@@ -14,10 +14,5 @@ CREATE TABLE IF NOT EXISTS `requests` (
   `status` VARCHAR(50) DEFAULT NULL,
   `manager` VARCHAR(100) DEFAULT NULL,
   `comment` TEXT DEFAULT NULL,
-  `next_contact_at` DATETIME DEFAULT NULL,
-  `imported_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  PRIMARY KEY (`id`),
-  UNIQUE KEY `uniq_external_id` (`external_id`),
-  KEY `idx_created_at` (`created_at`),
-  KEY `idx_status` (`status`)
+  `next_contact_at` DATETIME DEFAULT NULL,   
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
