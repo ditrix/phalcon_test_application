@@ -117,8 +117,8 @@ docker compose exec web sh -lc 'cd /var/www/html && php tests/RowNormalizerTest.
 
 | Формат | Рядків | Час імпорту |
 |---|---:|---:|
-| CSV | 100 000 | 3.94 с |
-| XLSX | 100 000 | 11.48 с |
+| CSV | 100 000 | 3.66 с |
+| XLSX | 100 000 | 11.6 с |
 
 Час XLSX включає конвертацію у CSV та запис даних у базу.
 
@@ -129,3 +129,6 @@ docker compose exec web sh -lc 'cd /var/www/html && php tests/RowNormalizerTest.
 ### Результат XLSX
 
 ![Результат імпорту XLSX](result_xlsx.png)
+
+### Попередження 
+![Попередження ](warnin_info.png)
